@@ -1,0 +1,39 @@
+version: "3"
+
+services:
+  autogptq-api-download:
+    container_name: autogptq-api-download
+    build: .
+    volumes:
+      - "./models:/app/models"
+    command: bash -c 'if [ ! -f /app/models/TheBloke/WizardCoder-15B-1.0-GPTQ/vocab.json ]; then python download.py TheBloke/WizardCoder-15B-1.0-GPTQ ; fi ; sleep infinity'
+    healthcheck:
+      test: "test -f /app/models/TheBloke/WizardCoder-15B-1.0-GPTQ/vocab.json"
+      interval: 10s
+      timeout: 5s
+      retries: 500
+
+  autogptq-api:
+    container_name: autogptq-api
+    volumes:
+      - "./models:/app/models"
+    build: .
+    restart: always
+    logging:
+      driver:  json-file
+      options:
+        max-file: "3"   # number of files or file count
+        max-size: '10m'
+    ports:
+      - 5000:5000
+    deploy:
+        resources:
+          reservations:
+            devices:
+              - driver: nvidia
+                device_ids: ['0']
+                capabilities: [gpu]
+    depends_on:
+      autogptq-api-download:
+        condition: service_healthy
+
